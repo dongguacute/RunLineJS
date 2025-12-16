@@ -36,7 +36,25 @@ export class RaceOverlay {
     this.trackLength = length;
     
     this.createLanes();
-    // this.createFinishLine();
+    
+    // Update existing rankings size and position
+    const laneSpan = Math.max(0.5, this.laneWidth - 0.3);
+    const trackSpan = laneSpan * 4;
+
+    this.rankingsGroup.children.forEach(child => {
+      if (child instanceof THREE.Mesh) {
+        // Update Geometry
+        if (child.geometry) child.geometry.dispose();
+        child.geometry = new THREE.PlaneGeometry(trackSpan, laneSpan);
+
+        // Update Position
+        const laneIndex = child.userData.laneIndex;
+        if (typeof laneIndex === 'number') {
+          const z = (laneIndex * this.laneWidth) - (this.laneCount * this.laneWidth / 2) + (this.laneWidth / 2);
+          child.position.z = z;
+        }
+      }
+    });
   }
 
   /**
@@ -117,6 +135,7 @@ export class RaceOverlay {
     
     // Position it slightly above ground (0.02) to avoid z-fighting with lanes or floor
     label.position.set(0, 0.02, z); 
+    label.userData = { laneIndex };
     
     this.rankingsGroup.add(label);
   }

@@ -25,6 +25,7 @@ const laneIndex = ref(4);
 const rank = ref(1);
 const athleteImage = ref<string | undefined>(undefined);
 const cardOrientation = ref<'flat' | 'upright'>('flat');
+const cameraView = ref<'oblique' | 'vertical'>('oblique');
 
 onMounted(() => {
   if (containerRef.value) {
@@ -66,6 +67,32 @@ const updateCardOrientation = () => {
   }
 };
 
+const updateCameraView = () => {
+  if (cameraView.value === 'vertical') {
+    // Top-down view
+    camPosX.value = 0;
+    camPosY.value = 40;
+    camPosZ.value = 0;
+    camRotX.value = -1.57; // -90 degrees
+    camRotY.value = 0;
+    camRotZ.value = -1.57; // Rotate to make track vertical on screen if desired, or 0 for horizontal
+    // Let's stick to 0 for horizontal track first, or maybe the user implies "Vertical" as "Track runs vertically"?
+    // "Vertical refers to camera shooting from vertical angle" -> Top Down.
+    // Usually track is long. If screen is 16:9, horizontal track fits better.
+    // But if they want "Vertical", maybe they mean Top Down.
+    camRotZ.value = 0; 
+  } else {
+    // Oblique view (Default)
+    camPosX.value = 0;
+    camPosY.value = 10;
+    camPosZ.value = 20;
+    camRotX.value = -0.5;
+    camRotY.value = 0;
+    camRotZ.value = 0;
+  }
+  updateCamera();
+};
+
 // Watch for lane spacing changes to update track geometry in real-time
 watch(laneSpacing, () => {
   updateTrackConfig();
@@ -73,6 +100,10 @@ watch(laneSpacing, () => {
 
 watch(cardOrientation, () => {
   updateCardOrientation();
+});
+
+watch(cameraView, () => {
+  updateCameraView();
 });
 
 const handleImageUpload = (event: Event) => {
@@ -122,6 +153,17 @@ const clearRankings = () => {
 
     <div class="controls">
       <div class="panel">
+        <h3>Camera Settings</h3>
+        <div class="control-group">
+          <label>
+            View Mode:
+            <select v-model="cameraView">
+              <option value="oblique">Oblique (Perspective)</option>
+              <option value="vertical">Vertical (Top-Down)</option>
+            </select>
+          </label>
+        </div>
+
         <h3>Camera Position</h3>
         <div class="control-group">
           <label>X: <input type="range" min="-50" max="50" step="0.1" v-model.number="camPosX" @input="updateCamera"> {{ camPosX }}</label>
@@ -174,24 +216,35 @@ const clearRankings = () => {
   </div>
 </template>
 
+<style>
+body, html, #app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+}
+</style>
+
 <style scoped>
 .app-container {
   font-family: Arial, sans-serif;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;
+  margin: 0;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 .viewport {
   position: relative;
   width: 100%;
-  max-width: 1000px;
+  /* Remove aspect-ratio to allow filling screen or using height */
   aspect-ratio: 16 / 9;
-  height: auto;
+  max-height: 80vh; /* Limit height so controls are visible */
   margin: 0 auto 20px;
   border: 2px solid #333;
   background: #000;
   overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
 
 .video-background {
@@ -228,7 +281,7 @@ const clearRankings = () => {
 
 .controls {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 20px;
 }
 
