@@ -27,6 +27,7 @@ const athleteImage = ref<string | undefined>(undefined);
 const cardOrientation = ref<'flat' | 'upright'>('flat');
 const cardStyle = ref<'classic' | 'modern' | 'neon'>('classic');
 const revealEffect = ref<'static' | 'fade' | 'slide' | 'scale'>('static');
+const cardOffsetX = ref(0);
 const cameraView = ref<'oblique' | 'vertical'>('oblique');
 
 onMounted(() => {
@@ -42,6 +43,7 @@ onMounted(() => {
     updateCardOrientation();
     updateCardStyle();
     updateRevealEffect();
+    updateCardOffset();
   }
 });
 
@@ -80,6 +82,12 @@ const updateCardStyle = () => {
 const updateRevealEffect = () => {
   if (overlay) {
     overlay.setRevealEffect(revealEffect.value);
+  }
+};
+
+const updateCardOffset = () => {
+  if (overlay) {
+    overlay.setCardOffset(cardOffsetX.value);
   }
 };
 
@@ -235,6 +243,11 @@ const clearRankings = () => {
               <option value="scale">Scale Up</option>
             </select>
           </label>
+        </div>
+
+        <h3>Card Position Offset</h3>
+        <div class="control-group">
+          <label>Offset X (m): <input type="number" step="0.1" v-model.number="cardOffsetX" @input="updateCardOffset"></label>
         </div>
 
         <h3>Test Controls</h3>

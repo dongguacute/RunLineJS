@@ -11,6 +11,7 @@ export class RaceOverlay {
   private cardOrientation: 'flat' | 'upright' = 'flat';
   private cardStyle: 'classic' | 'modern' | 'neon' = 'classic';
   private revealEffect: 'static' | 'fade' | 'slide' | 'scale' = 'static';
+  private cardOffsetX: number = 0;
   private animations: { mesh: THREE.Mesh, type: string, startTime: number, duration: number, startProp: any, endProp: any }[] = [];
 
   constructor(renderer: Renderer) {
@@ -42,6 +43,15 @@ export class RaceOverlay {
    */
   public setRevealEffect(effect: 'static' | 'fade' | 'slide' | 'scale') {
     this.revealEffect = effect;
+  }
+
+  /**
+   * Sets the global position offset for all ranking cards.
+   * @param x Offset along the track (Longitudinal)
+   */
+  public setCardOffset(x: number) {
+    this.cardOffsetX = x;
+    this.updateCardPositions();
   }
 
   private update() {
@@ -99,12 +109,23 @@ export class RaceOverlay {
         // Update Geometry
         if (child.geometry) child.geometry.dispose();
         child.geometry = new THREE.PlaneGeometry(trackSpan, laneSpan);
+      }
+    });
 
-        // Update Position
+    this.updateCardPositions();
+  }
+
+  private updateCardPositions() {
+    this.rankingsGroup.children.forEach(child => {
+      if (child instanceof THREE.Mesh) {
         const laneIndex = child.userData.laneIndex;
         if (typeof laneIndex === 'number') {
-          const z = (laneIndex * this.laneWidth) - (this.laneCount * this.laneWidth / 2) + (this.laneWidth / 2);
-          child.position.z = z;
+          // Base Z based on lane
+          const baseZ = (laneIndex * this.laneWidth) - (this.laneCount * this.laneWidth / 2) + (this.laneWidth / 2);
+          
+          child.position.x = 0 + this.cardOffsetX;
+          child.position.y = 0.02;
+          child.position.z = baseZ;
         }
       }
     });
@@ -181,14 +202,18 @@ export class RaceOverlay {
     if (laneIndex < 0 || laneIndex >= this.laneCount) return;
 
     // Calculate position: Center of the lane, at the finish line (x=0)
-    const z = (laneIndex * this.laneWidth) - (this.laneCount * this.laneWidth / 2) + (this.laneWidth / 2);
+    const baseZ = (laneIndex * this.laneWidth) - (this.laneCount * this.laneWidth / 2) + (this.laneWidth / 2);
     
     // Create a label
     const label = this.createLabel(rank, athleteName, time, imageBase64);
     
-    // Position it slightly above ground (0.02) to avoid z-fighting with lanes or floor
+    // Position it with offsets
     const targetY = 0.02;
-    label.position.set(0, targetY, z); 
+    label.position.set(
+        0 + this.cardOffsetX, 
+        targetY, 
+        baseZ
+    ); 
     label.userData = { laneIndex };
 
     // Apply Reveal Effect
