@@ -14,5 +14,8 @@
   "devDependencies": {
     "@types/node": "^25.0.2",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "three": "^0.182.0"
   }
 }
