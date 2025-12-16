@@ -1,16 +1,21 @@
 {
   "name": "runline-js",
   "version": "1.0.0",
-  "description": "A simple TypeScript library project",
+  "description": "RunLineJS is a real-time race overlay engine for the web, inspired by professional sports broadcasts. Using Three.js, it visualizes lane-based competitions with smooth animations, ranking transitions, and camera-friendly layouts—entirely in the browser",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "runline-js",
+    "runline",
+    "three.js",
+    "web"
+  ],
+  "author": "Cherry Fu <me@dgct.cc>",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.0.2",
     "typescript": "^5.9.3"
