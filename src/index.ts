@@ -20,3 +20,5 @@ export function greet(name: string): string {
 export * from './input';
 export * from './render';
 export * from './output';
+export * from './locator';
+export * from './overlay';
