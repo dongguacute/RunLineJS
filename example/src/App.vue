@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { onMounted, ref, onBeforeUnmount, watch } from 'vue';
-import { Renderer, RaceOverlay } from '../../src/index';
+import { Renderer, RaceOverlay, VideoController } from '../../src/index';
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const videoRef = ref<HTMLVideoElement | null>(null);
 let renderer: Renderer | null = null;
 let overlay: RaceOverlay | null = null;
+let videoController: VideoController | null = null;
+
+// Video Controls
+const isPlaying = ref(false);
+const playbackRate = ref(1.0);
+const currentTime = ref(0);
+const duration = ref(0);
 
 // Camera Controls (6-DOF)
 const camPosX = ref(0);
@@ -38,6 +45,24 @@ onMounted(() => {
     // Initialize Overlay
     overlay = new RaceOverlay(renderer);
     
+    // Initialize Video Controller
+    if (videoRef.value) {
+      videoController = new VideoController(videoRef.value);
+      
+      // Sync UI state with video events
+      videoRef.value.addEventListener('play', () => isPlaying.value = true);
+      videoRef.value.addEventListener('pause', () => isPlaying.value = false);
+      videoRef.value.addEventListener('timeupdate', () => {
+        if (videoRef.value) {
+          currentTime.value = videoRef.value.currentTime;
+          duration.value = videoRef.value.duration;
+        }
+      });
+      videoRef.value.addEventListener('loadedmetadata', () => {
+         if (videoRef.value) duration.value = videoRef.value.duration;
+      });
+    }
+
     // Initial Camera Setup
     updateCamera();
     updateCardOrientation();
@@ -51,7 +76,49 @@ onBeforeUnmount(() => {
   if (renderer) {
     renderer.destroy();
   }
+  if (videoController) {
+    videoController.destroy();
+  }
 });
+
+// Video Control Methods
+const handleVideoUpload = () => {
+  if (videoController) {
+    videoController.triggerFileUpload();
+  }
+};
+
+const togglePlay = () => {
+  if (videoController) {
+    videoController.togglePlay();
+  }
+};
+
+const stepForward = () => {
+  if (videoController) {
+    videoController.stepForward(1);
+  }
+};
+
+const stepBackward = () => {
+  if (videoController) {
+    videoController.stepBackward(1);
+  }
+};
+
+const updatePlaybackRate = () => {
+  if (videoController) {
+    videoController.setPlaybackRate(playbackRate.value);
+  }
+};
+
+const onSeek = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const time = parseFloat(target.value);
+  if (videoController) {
+    videoController.seek(time);
+  }
+};
 
 const updateCamera = () => {
   if (renderer) {
@@ -184,6 +251,32 @@ const clearRankings = () => {
     </div>
 
     <div class="controls">
+      <div class="panel">
+        <h3>Video Controls</h3>
+        <div class="control-group">
+          <button @click="handleVideoUpload">Upload Video</button>
+        </div>
+        <div class="control-group">
+            <button @click="togglePlay">{{ isPlaying ? 'Pause' : 'Play' }}</button>
+            <button @click="stepBackward">-1 Frame</button>
+            <button @click="stepForward">+1 Frame</button>
+        </div>
+        <div class="control-group">
+             <label>Speed: 
+                 <select v-model.number="playbackRate" @change="updatePlaybackRate">
+                     <option value="0.25">0.25x</option>
+                     <option value="0.5">0.5x</option>
+                     <option value="1.0">1.0x</option>
+                     <option value="2.0">2.0x</option>
+                 </select>
+             </label>
+        </div>
+        <div class="control-group">
+            <input type="range" min="0" :max="duration" step="0.01" :value="currentTime" @input="onSeek" style="width: 100%">
+            <div>{{ currentTime.toFixed(2) }}s / {{ duration.toFixed(2) }}s</div>
+        </div>
+      </div>
+
       <div class="panel">
         <h3>Camera Settings</h3>
         <div class="control-group">

@@ -14,8 +14,18 @@ export class RaceOverlay {
   private cardOffsetX: number = 0;
   private animations: { mesh: THREE.Mesh, type: string, startTime: number, duration: number, startProp: any, endProp: any }[] = [];
 
+  private raycaster = new THREE.Raycaster();
+  private mouse = new THREE.Vector2();
+  private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  private cursorLabel: HTMLDivElement | null = null;
+  private camera: THREE.Camera;
+  private domElement: HTMLElement;
+
   constructor(renderer: Renderer) {
     this.scene = renderer.scene;
+    this.camera = renderer.camera;
+    this.domElement = renderer.renderer.domElement;
+
     this.lanesGroup = new THREE.Group();
     this.rankingsGroup = new THREE.Group();
     
@@ -24,9 +34,61 @@ export class RaceOverlay {
 
     // Default setup
     this.createLanes();
+    this.createCursorLabel();
+    
+    this.domElement.addEventListener('mousemove', this.onMouseMove.bind(this));
+    this.domElement.addEventListener('mouseleave', () => {
+        if (this.cursorLabel) this.cursorLabel.style.display = 'none';
+    });
     
     // Register update loop
     renderer.onUpdate.push(this.update.bind(this));
+  }
+
+  private createCursorLabel() {
+    this.cursorLabel = document.createElement('div');
+    this.cursorLabel.style.position = 'absolute';
+    this.cursorLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    this.cursorLabel.style.color = 'white';
+    this.cursorLabel.style.padding = '4px 8px';
+    this.cursorLabel.style.borderRadius = '4px';
+    this.cursorLabel.style.pointerEvents = 'none';
+    this.cursorLabel.style.display = 'none';
+    this.cursorLabel.style.fontFamily = 'monospace';
+    this.cursorLabel.style.fontSize = '12px';
+    this.cursorLabel.style.zIndex = '1000';
+    
+    if (this.domElement.parentElement) {
+        // Ensure container is relative so absolute positioning works
+        const style = window.getComputedStyle(this.domElement.parentElement);
+        if (style.position === 'static') {
+            this.domElement.parentElement.style.position = 'relative';
+        }
+        this.domElement.parentElement.appendChild(this.cursorLabel);
+    }
+  }
+
+  private onMouseMove(event: MouseEvent) {
+    if (!this.cursorLabel) return;
+
+    const rect = this.domElement.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    const target = new THREE.Vector3();
+    const intersect = this.raycaster.ray.intersectPlane(this.plane, target);
+
+    if (intersect) {
+        this.cursorLabel.style.display = 'block';
+        // Position relative to the container
+        this.cursorLabel.style.left = `${event.clientX - rect.left + 15}px`;
+        this.cursorLabel.style.top = `${event.clientY - rect.top + 15}px`;
+        this.cursorLabel.textContent = `X: ${target.x.toFixed(2)}`;
+    } else {
+        this.cursorLabel.style.display = 'none';
+    }
   }
 
   /**
