@@ -1,0 +1,10 @@
+# Ignore everything initially
+*
+
+# Allow necessary files
+!/package.json
+!/README.md
+!/LICENSE
+!/dist/**
+!/src/** 
+# (Optional: Include src if you want to share source code, otherwise remove line 7)
