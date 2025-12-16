@@ -18,3 +18,4 @@ export function greet(name: string): string {
 }
 
 export * from './input';
+export * from './render';
