@@ -4,6 +4,7 @@ export class Renderer {
   public scene: THREE.Scene;
   public camera: THREE.PerspectiveCamera;
   public renderer: THREE.WebGLRenderer;
+  public onUpdate: (() => void)[] = [];
   private container: HTMLElement;
   private animationId: number | null = null;
 
@@ -49,6 +50,10 @@ export class Renderer {
 
   private animate() {
     this.animationId = requestAnimationFrame(this.animate.bind(this));
+    
+    // Run update callbacks
+    this.onUpdate.forEach(callback => callback());
+    
     this.renderer.render(this.scene, this.camera);
   }
 

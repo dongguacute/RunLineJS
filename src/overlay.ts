@@ -9,6 +9,9 @@ export class RaceOverlay {
   private laneWidth: number = 1.22; // Standard track lane width in meters
   private trackLength: number = 100; // Display length
   private cardOrientation: 'flat' | 'upright' = 'flat';
+  private cardStyle: 'classic' | 'modern' | 'neon' = 'classic';
+  private revealEffect: 'static' | 'fade' | 'slide' | 'scale' = 'static';
+  private animations: { mesh: THREE.Mesh, type: string, startTime: number, duration: number, startProp: any, endProp: any }[] = [];
 
   constructor(renderer: Renderer) {
     this.scene = renderer.scene;
@@ -20,8 +23,58 @@ export class RaceOverlay {
 
     // Default setup
     this.createLanes();
-    // Finish line is now optional or handled by the video background itself
-    // this.createFinishLine();
+    
+    // Register update loop
+    renderer.onUpdate.push(this.update.bind(this));
+  }
+
+  /**
+   * Sets the visual style of the ranking cards.
+   * @param style 'classic', 'modern', or 'neon'
+   */
+  public setCardStyle(style: 'classic' | 'modern' | 'neon') {
+    this.cardStyle = style;
+  }
+
+  /**
+   * Sets the reveal animation effect.
+   * @param effect 'static', 'fade', 'slide', or 'scale'
+   */
+  public setRevealEffect(effect: 'static' | 'fade' | 'slide' | 'scale') {
+    this.revealEffect = effect;
+  }
+
+  private update() {
+    const now = performance.now();
+    
+    // Process animations
+    for (let i = this.animations.length - 1; i >= 0; i--) {
+      const anim = this.animations[i];
+      const elapsed = now - anim.startTime;
+      const progress = Math.min(elapsed / anim.duration, 1);
+      
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      if (anim.type === 'fade') {
+        if (Array.isArray(anim.mesh.material)) {
+            anim.mesh.material.forEach(m => {
+                if (m instanceof THREE.Material) m.opacity = anim.startProp + (anim.endProp - anim.startProp) * eased;
+            });
+        } else if (anim.mesh.material instanceof THREE.Material) {
+            anim.mesh.material.opacity = anim.startProp + (anim.endProp - anim.startProp) * eased;
+        }
+      } else if (anim.type === 'slide') {
+        anim.mesh.position.y = anim.startProp + (anim.endProp - anim.startProp) * eased;
+      } else if (anim.type === 'scale') {
+        const s = anim.startProp + (anim.endProp - anim.startProp) * eased;
+        anim.mesh.scale.set(s, s, s);
+      }
+
+      if (progress >= 1) {
+        this.animations.splice(i, 1);
+      }
+    }
   }
 
   /**
@@ -134,8 +187,55 @@ export class RaceOverlay {
     const label = this.createLabel(rank, athleteName, time, imageBase64);
     
     // Position it slightly above ground (0.02) to avoid z-fighting with lanes or floor
-    label.position.set(0, 0.02, z); 
+    const targetY = 0.02;
+    label.position.set(0, targetY, z); 
     label.userData = { laneIndex };
+
+    // Apply Reveal Effect
+    if (this.revealEffect === 'fade') {
+        // Start transparent
+        if (label instanceof THREE.Mesh) {
+             if (Array.isArray(label.material)) {
+                 label.material.forEach(m => m.opacity = 0);
+             } else {
+                 label.material.opacity = 0;
+             }
+             this.animations.push({
+                 mesh: label,
+                 type: 'fade',
+                 startTime: performance.now(),
+                 duration: 1000,
+                 startProp: 0,
+                 endProp: 1
+             });
+        }
+    } else if (this.revealEffect === 'slide') {
+        // Start below ground
+        label.position.y = -5;
+        if (label instanceof THREE.Mesh) {
+             this.animations.push({
+                 mesh: label,
+                 type: 'slide',
+                 startTime: performance.now(),
+                 duration: 800,
+                 startProp: -5,
+                 endProp: targetY
+             });
+        }
+    } else if (this.revealEffect === 'scale') {
+        // Start small
+        label.scale.set(0, 0, 0);
+        if (label instanceof THREE.Mesh) {
+             this.animations.push({
+                 mesh: label,
+                 type: 'scale',
+                 startTime: performance.now(),
+                 duration: 600,
+                 startProp: 0,
+                 endProp: 1
+             });
+        }
+    }
     
     this.rankingsGroup.add(label);
   }
@@ -153,20 +253,57 @@ export class RaceOverlay {
     canvas.height = height;
 
     // Background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.roundRect(0, 0, width, height, 20);
-    ctx.fill();
+    if (this.cardStyle === 'modern') {
+        // Modern: White/Light background, rounded corners
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.roundRect(0, 0, width, height, 40);
+        ctx.fill();
+        
+        // Shadow effect (inner)
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 20;
+        ctx.shadowOffsetX = 5;
+        ctx.shadowOffsetY = 5;
+    } else if (this.cardStyle === 'neon') {
+        // Neon: Dark background, glowing border
+        ctx.fillStyle = 'rgba(10, 10, 20, 0.85)';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Glow
+        ctx.shadowColor = rank === 1 ? '#FFD700' : (rank === 2 ? '#C0C0C0' : (rank === 3 ? '#CD7F32' : '#00FFFF'));
+        ctx.shadowBlur = 30;
+    } else {
+        // Classic: Dark background, slight round
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.roundRect(0, 0, width, height, 20);
+        ctx.fill();
+    }
+    
+    // Reset shadow for text/content
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
 
     // Border color based on rank
-    ctx.lineWidth = 10;
+    ctx.lineWidth = this.cardStyle === 'neon' ? 15 : 10;
     if (rank === 1) ctx.strokeStyle = '#FFD700'; // Gold
     else if (rank === 2) ctx.strokeStyle = '#C0C0C0'; // Silver
     else if (rank === 3) ctx.strokeStyle = '#CD7F32'; // Bronze
-    else ctx.strokeStyle = '#FFFFFF';
-    ctx.stroke();
+    else ctx.strokeStyle = this.cardStyle === 'modern' ? '#333333' : '#FFFFFF';
+    
+    if (this.cardStyle !== 'modern') {
+       ctx.stroke();
+    } else {
+       // Modern might not need full border, maybe just a left accent bar
+       ctx.beginPath();
+       ctx.moveTo(20, 0);
+       ctx.lineTo(20, height);
+       ctx.lineWidth = 40;
+       ctx.stroke();
+    }
 
     // Text & Layout
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = this.cardStyle === 'modern' ? '#333333' : '#FFFFFF';
     
     const textStartX = imageBase64 ? 300 : 60; // Shift text right if image exists
     const centerY = height / 2;
@@ -175,17 +312,25 @@ export class RaceOverlay {
     if (imageBase64) {
       const img = new Image();
       img.onload = () => {
-        // Draw image in a circle or square on the left
+        // Draw image in a square/rect (User Request: "Not circular")
         const size = 200;
         const x = 30;
         const y = (height - size) / 2;
 
         ctx.save();
-        ctx.beginPath();
-        // Circular mask
-        ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
+        
+        // Optional: Rounded corners for image if Modern style
+        if (this.cardStyle === 'modern') {
+            ctx.beginPath();
+            ctx.roundRect(x, y, size, size, 20);
+            ctx.clip();
+        } else {
+            // Square/Rect for Classic/Neon as requested (or just slight round)
+            // Just raw square
+            ctx.beginPath();
+            ctx.rect(x, y, size, size);
+            ctx.clip();
+        }
         
         ctx.drawImage(img, x, y, size, size);
         ctx.restore();
@@ -198,16 +343,16 @@ export class RaceOverlay {
 
     // Rank
     ctx.textAlign = 'left';
-    ctx.font = 'bold 100px Arial';
+    ctx.font = this.cardStyle === 'neon' ? 'bold 100px Courier New' : 'bold 100px Arial';
     ctx.fillText(`${rank}`, textStartX, centerY + 30);
 
     // Name
     ctx.textAlign = 'left';
-    ctx.font = 'bold 70px Arial';
+    ctx.font = this.cardStyle === 'neon' ? 'bold 70px Courier New' : 'bold 70px Arial';
     ctx.fillText(name, textStartX + 120, centerY - 20);
 
     // Time
-    ctx.font = '50px Arial';
+    ctx.font = this.cardStyle === 'neon' ? '50px Courier New' : '50px Arial';
     ctx.fillText(time, textStartX + 120, centerY + 50);
 
     const texture = new THREE.CanvasTexture(canvas);

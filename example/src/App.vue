@@ -25,6 +25,8 @@ const laneIndex = ref(4);
 const rank = ref(1);
 const athleteImage = ref<string | undefined>(undefined);
 const cardOrientation = ref<'flat' | 'upright'>('flat');
+const cardStyle = ref<'classic' | 'modern' | 'neon'>('classic');
+const revealEffect = ref<'static' | 'fade' | 'slide' | 'scale'>('static');
 const cameraView = ref<'oblique' | 'vertical'>('oblique');
 
 onMounted(() => {
@@ -38,6 +40,8 @@ onMounted(() => {
     // Initial Camera Setup
     updateCamera();
     updateCardOrientation();
+    updateCardStyle();
+    updateRevealEffect();
   }
 });
 
@@ -64,6 +68,18 @@ const updateTrackConfig = () => {
 const updateCardOrientation = () => {
   if (overlay) {
     overlay.setCardOrientation(cardOrientation.value);
+  }
+};
+
+const updateCardStyle = () => {
+  if (overlay) {
+    overlay.setCardStyle(cardStyle.value);
+  }
+};
+
+const updateRevealEffect = () => {
+  if (overlay) {
+    overlay.setRevealEffect(revealEffect.value);
   }
 };
 
@@ -100,6 +116,14 @@ watch(laneSpacing, () => {
 
 watch(cardOrientation, () => {
   updateCardOrientation();
+});
+
+watch(cardStyle, () => {
+  updateCardStyle();
+});
+
+watch(revealEffect, () => {
+  updateRevealEffect();
 });
 
 watch(cameraView, () => {
@@ -192,6 +216,23 @@ const clearRankings = () => {
             <select v-model="cardOrientation">
               <option value="flat">Flat (Ground)</option>
               <option value="upright">Upright (Camera Facing)</option>
+            </select>
+          </label>
+          <label>
+            Style:
+            <select v-model="cardStyle">
+              <option value="classic">Classic</option>
+              <option value="modern">Modern</option>
+              <option value="neon">Neon</option>
+            </select>
+          </label>
+          <label>
+            Reveal Effect:
+            <select v-model="revealEffect">
+              <option value="static">Static (None)</option>
+              <option value="fade">Fade In</option>
+              <option value="slide">Slide Up</option>
+              <option value="scale">Scale Up</option>
             </select>
           </label>
         </div>
